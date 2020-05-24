@@ -1,0 +1,114 @@
+﻿@page "/lobby/{LobbyId}/admin/{AdminCode}"
+
+@inject TurnipHub.Data.LobbyService LobbyService
+@inject NavigationManager NavigationManager
+
+<h3>Lobby @LobbyEntity.TownName</h3>
+<p>Send this link to your visitors</p>
+<input class="form-control form-inline" readonly value="@NavigationManager.ToAbsoluteUri("/lobby/" + LobbyId)" />
+<ul>
+    <li>Admissions are @LobbyEntity.ConcurrentVisitors at a time</li>
+</ul>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-6">
+            <b>Current visitors</b>
+            @if (!LobbyEntity.CurrentVisitors.Any())
+            {
+                <p>Nobody is admitted</p>
+            }
+            else
+            {
+                <ul>
+
+                    @foreach (var currentVisitor in LobbyEntity.CurrentVisitors)
+                    {
+                        <li>@currentVisitor.Name</li>
+                    }
+                </ul>
+            }
+
+        </div>
+        <div class="col-md-6">
+            <b>Visitor queue</b>
+            @if (!LobbyEntity.VisitorQueue.Any())
+            {
+                <p>Nobody is in Queue</p>
+            }
+            else
+            {
+                <ul>
+                    @foreach (var backlogVisitor in LobbyEntity.VisitorQueue)
+                    {
+                        <li>@backlogVisitor.Name</li>
+                    }
+                </ul>
+                <button class="btn btn-primary" @onclick="AdvanceQueue">Take group of @LobbyEntity.ConcurrentVisitors</button>
+                <button class="btn btn-light" @onclick="LockQueue">@(LobbyEntity.VisitorQueueLocked?"Unlock":"Lock") queue</button>
+            }
+
+
+        </div>
+    </div>
+
+</div>
+
+@code {
+    [Parameter]
+    public string LobbyId { get; set; }
+
+    [Parameter]
+    public string AdminCode { get; set; }
+
+    public TurnipHub.Data.Lobby.LobbyEntity LobbyEntity { get; set; }
+    private TurnipHub.Data.Lobby.LobbyClient _lobbyClient { get; set; }
+
+    protected async override void OnInitialized()
+    {
+        LobbyEntity = LobbyService.Get(Guid.Parse(LobbyId));
+        if (LobbyEntity.AdminCode.ToString() != AdminCode) return;
+        _lobbyClient = new Data.Lobby.LobbyClient();
+
+
+        _lobbyClient.OnUserEnter += (string userId) =>
+        {
+            StateHasChanged();
+        };
+        await _lobbyClient.StartAsync(NavigationManager.ToAbsoluteUri("/lobbyHub"));
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (AdminCode != LobbyEntity.AdminCode.ToString())
+        {
+            NavigationManager.NavigateTo("/");
+        }
+        base.OnAfterRender(firstRender);
+    }
+
+    public void LockQueue()
+    {
+        LobbyEntity.VisitorQueueLocked = !LobbyEntity.VisitorQueueLocked;
+    }
+
+    public async Task AdvanceQueue()
+    {
+        if (!LobbyEntity.VisitorQueue.Any()) return;
+        LobbyEntity.CurrentVisitors.Clear();
+
+        int counter = 0;
+        foreach (var visitor in LobbyEntity.VisitorQueue)
+        {
+            if (counter >= LobbyEntity.ConcurrentVisitors)
+                break;
+
+            LobbyEntity.CurrentVisitors.Add(visitor);
+            await _lobbyClient.Admit(visitor);
+            counter++;
+        }
+
+        LobbyEntity.VisitorQueue.RemoveRange(0, counter);
+        await _lobbyClient.RefreshLobby(LobbyEntity);
+    }
+}

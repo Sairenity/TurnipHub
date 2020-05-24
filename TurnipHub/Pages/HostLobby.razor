@@ -1,0 +1,49 @@
+﻿@page "/hostlobby"
+@using TurnipHub.Data.Lobby
+@using TurnipHub.Data
+@using Microsoft.AspNetCore.Mvc
+
+@inject LobbyService LobbyService
+@inject NavigationManager NavigationManager
+
+<h3>Host a lobby</h3>
+<p>Host a lobby for your guests.</p>
+
+<form>
+    <div class="form-group">
+        <label for="town_name">Town name</label>
+        <input class="form-control" name="town_name" @bind-value="lobby.TownName" />
+    </div>
+    <div class="form-group">
+        <label for="dodo_code">Dodo code</label>
+        <input class="form-control" name="dodo_code" @bind-value="lobby.DodoCode" />
+    </div>
+    <div class="form-group">
+        <label for="lobby_size">Concurrent visitors</label>
+        <input class="form-control" name="lobby_size" type="number" @bind-value="lobby.ConcurrentVisitors" />
+    </div>
+    <div class="form-group">
+        <label for="queue_size">Queue size</label>
+        <input class="form-control" name="queue_size" type="number" @bind-value="lobby.QueueSize" />
+    </div>
+</form>
+
+<button class="btn btn-primary" @onclick="DoHostLobby">DEW IT</button>
+
+
+
+@code {
+    private LobbyViewModel lobby { get; set; } = new LobbyViewModel();
+
+    private void DoHostLobby()
+    {
+        var newLobby = new LobbyEntity(lobby);
+        LobbyService.CreateOrUpdate(newLobby);
+
+        NavigationManager.NavigateTo($"lobby/{newLobby.LobbyId}/admin/{newLobby.AdminCode}");
+
+
+
+
+    }
+}

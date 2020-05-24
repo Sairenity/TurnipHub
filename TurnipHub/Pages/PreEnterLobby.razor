@@ -1,0 +1,20 @@
+﻿
+@page "/lobby/{LobbyId}"
+
+@inject NavigationManager NavigationManager;
+@inject TurnipHub.Data.VisitorService VisitorService;
+
+@code {
+    [Parameter]
+    public string LobbyId { get; set; }
+    protected override void OnAfterRender(bool firstRender)
+    {
+        var newVisitor = new TurnipHub.Data.Lobby.UserEntity()
+        {
+            UserId = Guid.NewGuid()
+        };
+        VisitorService.CreateOrUpdate(newVisitor);
+        NavigationManager.NavigateTo($"/lobby/{LobbyId}/visitor/{newVisitor.UserId}");
+        base.OnAfterRender(firstRender);
+    }
+}

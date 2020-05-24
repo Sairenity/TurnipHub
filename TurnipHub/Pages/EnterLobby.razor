@@ -1,0 +1,131 @@
+﻿
+@page "/lobby/{LobbyId}/visitor/{VisitorId}"
+
+@using TurnipHub.Data.Lobby;
+@using TurnipHub.Data;
+@inject LobbyService LobbyService;
+@inject VisitorService VisitorService;
+@inject NavigationManager NavigationManager;
+
+@if (_visitorEntity != null)
+{
+    <h3>Join a lobby</h3>
+    @if (_visitorEntity.LobbyState == LobbyVisitorStateEnum.InitialState)
+    {
+        <form>
+            <div class="form-group">
+                <label for="visitor_name">Your name</label>
+                <input class="form-control" name="visitor_name" @bind-value="_visitorEntity.Name" />
+            </div>
+        </form>
+    }
+
+    @if (_visitorEntity.LobbyState == LobbyVisitorStateEnum.EntrySubmitted)
+    {
+        <p>The host was notified that you wish to join.</p>
+        <p>Waiting for admission by the host...</p>
+        @if (_visitorEntity.PositionInQueue == 0)
+        {
+            <p>You are next in line!</p>
+        }
+        else
+        {
+            <p>There are @(_visitorEntity.PositionInQueue/_lobbyEntity.ConcurrentVisitors) groups ahead of you.</p>
+            <p>Sit back and relax! We will notify you once you've been admitted.</p>
+        }
+
+    }
+
+    @if (_visitorEntity.LobbyState == LobbyVisitorStateEnum.AdmissionGranted)
+    {
+        <p>You were admitted into @_lobbyEntity.TownName Island!</p>
+        <p>The hosts dodo code is <span>@_lobbyEntity.DodoCode</span></p>
+    }
+
+    @if (_visitorEntity.LobbyState == LobbyVisitorStateEnum.InitialState)
+    {
+        <button class="btn btn-primary" @onclick="EnterVisitor">Enter</button>
+    }
+}
+
+@code {
+
+
+    [Parameter]
+    public string LobbyId { get; set; }
+
+    [Parameter]
+    public string VisitorId { get; set; }
+
+    private LobbyClient _lobbyClient;
+    private LobbyEntity _lobbyEntity;
+    private UserEntity _visitorEntity;
+
+    protected override void OnInitialized()
+    {
+        if (VisitorId == null)
+        {
+            return;
+        }
+        _lobbyEntity = LobbyService.Get(Guid.Parse(LobbyId));
+        _visitorEntity = VisitorService.Get(Guid.Parse(VisitorId));
+        if (_visitorEntity == null)
+        {
+            _visitorEntity = new UserEntity()
+            {
+                UserId = Guid.Parse(VisitorId),
+                LobbyState = LobbyVisitorStateEnum.InitialState
+            };
+            VisitorService.CreateOrUpdate(_visitorEntity);
+        }
+        base.OnInitialized();
+    }
+
+    protected async override Task OnParametersSetAsync()
+    {
+
+        if (VisitorId == null)
+        {
+            return;
+        }
+
+        _lobbyClient = new LobbyClient();
+        _lobbyClient.OnUserAdmitted += OnUserAdmitted;
+        _lobbyClient.OnGroupsAheadRefreshed += OnGroupsAheadRefreshed;
+        await _lobbyClient.StartAsync(NavigationManager.ToAbsoluteUri("/lobbyHub"));
+        await _lobbyClient.Connect(_visitorEntity);
+        await base.OnParametersSetAsync();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (VisitorId == null)
+        {
+            NavigationManager.NavigateTo($"/lobby/{LobbyId}/visitor/{Guid.NewGuid()}");
+            return;
+        }
+        base.OnAfterRender(firstRender);
+    }
+
+
+    void OnUserAdmitted(string userId)
+    {
+        _visitorEntity.LobbyState = LobbyVisitorStateEnum.AdmissionGranted;
+        StateHasChanged();
+    }
+    void OnGroupsAheadRefreshed(string lobbyId)
+    {
+        _lobbyEntity = LobbyService.Get(Guid.Parse(lobbyId));
+        StateHasChanged();
+    }
+
+    public async void EnterVisitor()
+    {
+        if (_lobbyEntity.VisitorQueueLocked == true) return;
+        _lobbyEntity.VisitorQueue.Add(_visitorEntity);
+        _lobbyEntity.RecalculatePositions();
+        await _lobbyClient.Enter(_visitorEntity);
+        _visitorEntity.LobbyState = LobbyVisitorStateEnum.EntrySubmitted;
+        StateHasChanged();
+    }
+}
