@@ -12,8 +12,17 @@ namespace TurnipHub.Data
 
         public UserEntity CreateOrUpdate(UserEntity entity)
         {
-            entity.UserId = Guid.NewGuid();
-            _database.Add(entity);
+            var existing = _database.FirstOrDefault(q => q.UserId == entity.UserId);
+            if (existing == null)
+            {
+                entity.UserId = Guid.NewGuid();
+                _database.Add(entity);
+            }
+            else
+            {
+                existing.LobbyState = entity.LobbyState;
+            }
+
             return entity;
         }
 

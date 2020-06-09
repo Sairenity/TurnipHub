@@ -9,26 +9,36 @@
 <h3>Host a lobby</h3>
 <p>Host a lobby for your guests.</p>
 
-<form>
+
+<EditForm Model="@lobby" OnValidSubmit="DoHostLobby">
+    <FluentValidationValidator />
     <div class="form-group">
         <label for="town_name">Town name</label>
         <input class="form-control" name="town_name" @bind-value="lobby.TownName" />
+        <ValidationMessage For="@(() => lobby.TownName)" />
+
     </div>
     <div class="form-group">
         <label for="dodo_code">Dodo code</label>
         <input class="form-control" name="dodo_code" @bind-value="lobby.DodoCode" />
+        <ValidationMessage For="@(() => lobby.DodoCode)" />
     </div>
     <div class="form-group">
         <label for="lobby_size">Concurrent visitors</label>
         <input class="form-control" name="lobby_size" type="number" @bind-value="lobby.ConcurrentVisitors" />
+        <ValidationMessage For="@(() => lobby.ConcurrentVisitors)" />
     </div>
     <div class="form-group">
         <label for="queue_size">Queue size</label>
         <input class="form-control" name="queue_size" type="number" @bind-value="lobby.QueueSize" />
+        <ValidationMessage For="@(() => lobby.QueueSize)" />
     </div>
-</form>
 
-<button class="btn btn-primary" @onclick="DoHostLobby">DEW IT</button>
+    <button class="btn btn-primary" type="submit">Host Lobby</button>
+    
+</EditForm>
+
+
 
 
 

@@ -3,15 +3,19 @@
 
 @using TurnipHub.Data.Lobby;
 @using TurnipHub.Data;
+@using Blazor.Extensions
+
 @inject LobbyService LobbyService;
 @inject VisitorService VisitorService;
 @inject NavigationManager NavigationManager;
 
 @if (_visitorEntity != null)
 {
-    <h3>Join a lobby</h3>
+
+
     @if (_visitorEntity.LobbyState == LobbyVisitorStateEnum.InitialState)
     {
+        <h3>Join a lobby</h3>
         <form>
             <div class="form-group">
                 <label for="visitor_name">Your name</label>
@@ -22,9 +26,10 @@
 
     @if (_visitorEntity.LobbyState == LobbyVisitorStateEnum.EntrySubmitted)
     {
+        <h3>Lobby @_lobbyEntity.TownName</h3>
         <p>The host was notified that you wish to join.</p>
         <p>Waiting for admission by the host...</p>
-        @if (_visitorEntity.PositionInQueue == 0)
+        @if (_visitorEntity.PositionInQueue / _lobbyEntity.ConcurrentVisitors == 0)
         {
             <p>You are next in line!</p>
         }
@@ -61,7 +66,7 @@
     private LobbyEntity _lobbyEntity;
     private UserEntity _visitorEntity;
 
-    protected override void OnInitialized()
+    protected async override Task OnInitializedAsync()
     {
         if (VisitorId == null)
         {
@@ -78,6 +83,7 @@
             };
             VisitorService.CreateOrUpdate(_visitorEntity);
         }
+
         base.OnInitialized();
     }
 
@@ -123,9 +129,11 @@
     {
         if (_lobbyEntity.VisitorQueueLocked == true) return;
         _lobbyEntity.VisitorQueue.Add(_visitorEntity);
+        _visitorEntity.JoinedLobby = _lobbyEntity;
         _lobbyEntity.RecalculatePositions();
         await _lobbyClient.Enter(_visitorEntity);
         _visitorEntity.LobbyState = LobbyVisitorStateEnum.EntrySubmitted;
+        VisitorService.CreateOrUpdate(_visitorEntity);
         StateHasChanged();
     }
 }

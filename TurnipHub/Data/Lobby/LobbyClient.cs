@@ -75,6 +75,11 @@ namespace TurnipHub.Data.Lobby
             await _hubConnection.SendAsync(LobbyMessage.RefreshGroupsAhead, lobby.LobbyId);
         }
 
+        public async Task UpdateQueuePositions(LobbyEntity lobby)
+        {
+            
+        }
+
         public async ValueTask DisposeAsync()
         {
             Console.WriteLine("LobbyClient: Disposing");

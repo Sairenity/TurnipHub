@@ -16,6 +16,7 @@ namespace TurnipHub.Data.Lobby
         public string Name { get; set; }
         public bool AdmissionGranted { get; set; }
         public int PositionInQueue { get; set; }
+        public LobbyEntity JoinedLobby { get; set; }
 
     }
 }

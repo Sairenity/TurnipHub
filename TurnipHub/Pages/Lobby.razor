@@ -97,18 +97,23 @@
         if (!LobbyEntity.VisitorQueue.Any()) return;
         LobbyEntity.CurrentVisitors.Clear();
 
-        int counter = 0;
+        int admittedUsers = 0;
         foreach (var visitor in LobbyEntity.VisitorQueue)
         {
-            if (counter >= LobbyEntity.ConcurrentVisitors)
+            if (admittedUsers >= LobbyEntity.ConcurrentVisitors)
                 break;
 
             LobbyEntity.CurrentVisitors.Add(visitor);
             await _lobbyClient.Admit(visitor);
-            counter++;
+            admittedUsers++;
+        }
+        LobbyEntity.VisitorQueue.RemoveRange(0, admittedUsers);
+
+        foreach (var waitingUser in LobbyEntity.VisitorQueue)
+        {
+            waitingUser.PositionInQueue -= admittedUsers;
         }
 
-        LobbyEntity.VisitorQueue.RemoveRange(0, counter);
         await _lobbyClient.RefreshLobby(LobbyEntity);
     }
 }

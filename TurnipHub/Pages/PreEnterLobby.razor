@@ -1,20 +1,88 @@
 ﻿
 @page "/lobby/{LobbyId}"
 
+@using TurnipHub.Data.Lobby;
 @inject NavigationManager NavigationManager;
 @inject TurnipHub.Data.VisitorService VisitorService;
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage;
+
+
+@if (ErrorState)
+{
+    <p>Ye cannae enter more than 1 lobbeh, ya git</p>
+}
 
 @code {
     [Parameter]
     public string LobbyId { get; set; }
-    protected override void OnAfterRender(bool firstRender)
+
+    private bool ErrorState = false;
+
+
+    protected override async void OnAfterRender(bool firstRender)
     {
-        var newVisitor = new TurnipHub.Data.Lobby.UserEntity()
+
+        var existingVisitor = await LocalStorage.GetItemAsync<string>("visitorId");
+
+        if (existingVisitor != null)
         {
-            UserId = Guid.NewGuid()
-        };
-        VisitorService.CreateOrUpdate(newVisitor);
-        NavigationManager.NavigateTo($"/lobby/{LobbyId}/visitor/{newVisitor.UserId}");
-        base.OnAfterRender(firstRender);
+            var existingEntity = VisitorService.Get(Guid.Parse(existingVisitor));
+            if (existingEntity != null)
+            {
+                if (existingEntity.JoinedLobby != null)
+                {
+                    base.OnAfterRender(firstRender);
+                    ErrorState = true;
+                    StateHasChanged();
+                    return;
+                }
+
+
+                NavigationManager.NavigateTo($"/lobby/{LobbyId}/visitor/{existingEntity.UserId}");
+                return;
+            }
+            else
+            {
+                await LocalStorage.RemoveItemAsync("visitorId");
+            }
+        }
+
+
+        var visitor = new UserEntity();
+        VisitorService.CreateOrUpdate(visitor);
+        await LocalStorage.SetItemAsync("visitorId", visitor.UserId.ToString());
+        NavigationManager.NavigateTo($"/lobby/{LobbyId}/visitor/{visitor.UserId}");
+        return;
+
+
+        //UserEntity newVisitor = null;
+        //if (existingVisitor == null)
+        //{
+        //    newVisitor = new UserEntity()
+        //    {
+        //    };
+        //    VisitorService.CreateOrUpdate(newVisitor);
+        //    await LocalStorage.SetItemAsync("visitorId", newVisitor.UserId.ToString());
+        //}
+        //else
+        //{
+        //    newVisitor = VisitorService.Get(Guid.Parse(existingVisitor));
+        //    if (newVisitor == null)
+        //    {
+        //        await LocalStorage.RemoveItemAsync("visitorId");
+        //        newVisitor = new UserEntity()
+        //        {
+        //        };
+        //        VisitorService.CreateOrUpdate(newVisitor);
+        //        await LocalStorage.SetItemAsync("visitorId", newVisitor.UserId.ToString());
+        //    }
+        //    if (newVisitor.LobbyState != LobbyVisitorStateEnum.InitialState)
+        //    {
+        //        NavigationManager.NavigateTo($"/");
+        //    }
+        //}
+
+
+        
     }
 }
